@@ -2,38 +2,92 @@
 #include "C12832.h"
 #include "LM75B.h"
 
- 
-//LocalFileSystem local("local");               // Create the local filesystem under the name "local"
- 
-float temp_v[] = {19.3, 23.8, 26.8, 13.4, 17.9, 19};
+C12832 lcd(p5, p7, p6, p8, p11);
+LM75B temp_sensor(p28,p27);
 
+// Create the local filesystem 
+LocalFileSystem local("local");
 
-int main() {   
-    float min_t = 50;
-    float max_t = -50;
-    for(int i=0; i<10; i++){
+const int DATA_SIZE = 100;
+const int LOG_INTERVAL_SEC = 300; // log data every 5 minutes
+const char* FILENAME = "/local/data.txt";
 
-        //Min value
-        if(temp_v[i] < min_t)
-            min_t=temp_v[i];
+float data[DATA_SIZE];
+int data_count = 0;
 
-        //Max value
-        if(temp_v[i] > max_t)
-            max_t = temp_v[i];
+float get_min(float *data, int size) {
+  float min = data[0];
+  for (int i = 1; i < size; i++) {
+    if (data[i] < min) {
+      min = data[i];
     }
+  }
+  return min;
+}
 
+float get_max(float *data, int size) {
+  float max = data[0];
+  for (int i = 1; i < size; i++) {
+    if (data[i] > max) {
+      max = data[i];
+    }
+  }
+  return max;
+}
 
-   printf("%f is max and %f is min \r\n", max_t, min_t);
-   
-    
-   
-   
-   
-   
-    FILE *fp = fopen("/local/out.txt", "w");  // Open "out.txt" on the local file system for writing
-    fprintf(fp, "%f");
-    fclose(fp);
+float get_average(float *data, int size) {
+  float sum = 0;
+  for (int i = 0; i < size; i++) {
+    sum += data[i];
+  }
+  return sum / size;
+}
 
+int main() {  
+    Timer log_timer;
+    log_timer.start(); 
 
+    while (1) {
+        // check if it's time to log data
+        if (log_timer.read() > LOG_INTERVAL_SEC) {
+            log_timer.reset();
 
+            //Temp measured
+            float temp = temp_sensor.read();
+            data[data_count] = temp;
+            data_count++;
+
+           //Storage of data
+           FILE* fp = fopen(FILENAME, "a");
+            if (fp != NULL) {
+                fprintf(fp, "%.2f\n", temp);
+                fclose(fp);
+            }
+        }
+
+        //Files read from storage
+        FILE* fp = fopen(FILENAME, "r");
+        if (fp != NULL) {
+            int i = 0;
+            while (!feof(fp) && i < DATA_SIZE) {
+                fscanf(fp, "%f", &data[i]);
+                i++;
+            }
+            fclose(fp);
+
+            float min = get_min(data, data_count);
+            float max = get_max(data, data_count);
+            float avg = get_average(data, data_count);
+            
+
+            // show temp data on LCD
+            lcd.cls();
+            lcd.locate(0,3);
+            lcd.printf("Min temp: %.2fC\n", min);
+            lcd.printf("Max temp: %.2fC\n", max);
+            lcd.printf("Avg temp: %.2fC\n", avg);
+        }
+        
+      
+    }
 }
