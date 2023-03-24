@@ -9,7 +9,7 @@ LM75B temp_sensor(p28,p27);
 LocalFileSystem local("local");
 
 const int DATA_SIZE = 100;
-const int LOG_INTERVAL_SEC = 300; // log data every 5 minutes
+const int LOG_INTERVAL_SEC = 3; // log data every 5 minutes
 const char* FILENAME = "/local/data.txt";
 
 float data[DATA_SIZE];
